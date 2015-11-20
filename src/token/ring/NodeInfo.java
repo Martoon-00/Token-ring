@@ -8,7 +8,7 @@ public class NodeInfo implements Serializable {
 
     public final InetAddress address;
 
-    // Other fields are useless
+    // Next fields are useless
     private final int tcpPort;
     private final UniqueValue unique;
 
@@ -24,7 +24,7 @@ public class NodeInfo implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("NodeInfo [%s] {%s, %s}", unique, address, tcpPort);
+        return String.format("NodeInfo [%s]", unique);
     }
 
     @Override
