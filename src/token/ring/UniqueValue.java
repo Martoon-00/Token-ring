@@ -1,12 +1,10 @@
 package token.ring;
 
-import java.io.Serializable;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,14 +32,25 @@ public class UniqueValue implements Comparable<UniqueValue>, Serializable {
                 .collect(Collectors.toList());
 
         Pattern pattern = Pattern.compile("[^:]*\\w[^:]*");  // is not ip address, v4 or v6
-        String hostName = availableHostNames.stream()
-                .filter(name -> pattern.matcher(name).matches())
-                .findAny()
-                .orElse(availableHostNames.stream()
+        String hostName = getNameFromProperty()
+                .orElseGet(() -> availableHostNames.stream()
+                        .filter(name -> pattern.matcher(name).matches())
                         .findAny()
-                        .orElse("Anonimus"));
+                        .orElseGet(() -> availableHostNames.stream()
+                                .findAny()
+                                .orElse("Anonimus")));
 
         return new UniqueValue(hardwareAddress, hostName);
+    }
+
+    private static Optional<String> getNameFromProperty() {
+        try (InputStream in = new FileInputStream("name.properties")) {
+            Properties props = new Properties();
+            props.load(in);
+            return Optional.ofNullable(props.getProperty("unique.name"));
+        } catch (IOException e) {
+            return Optional.empty();
+        }
     }
 
     @Override
