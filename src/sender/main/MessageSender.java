@@ -401,7 +401,7 @@ public class MessageSender implements Closeable {
     }
 
     public NodeInfo getNodeInfo() {
-        return new NodeInfo(listeningAddress, tcpListener.getListeningPort(), unique);
+        return new NodeInfo(listeningAddress, unique);
     }
 
     @Override

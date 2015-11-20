@@ -6,13 +6,10 @@ import java.net.InetAddress;
 public class NodeInfo implements Serializable {
     public final InetAddress address;
 
-    // Next fields are useless
-    private final int tcpPort;
     private final UniqueValue unique;
 
-    public NodeInfo(InetAddress address, int tcpPort, UniqueValue unique) {
+    public NodeInfo(InetAddress address, UniqueValue unique) {
         this.address = address;
-        this.tcpPort = tcpPort;
         this.unique = unique;
     }
 
@@ -22,7 +19,7 @@ public class NodeInfo implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("NodeInfo [%s]", unique);
+        return String.format("NodeInfo %s {%s}", unique, address);
     }
 
     @Override
