@@ -10,8 +10,6 @@ import java.util.stream.Stream;
  *
  */
 public class NetworkMap implements Serializable {
-    private static final long serialVersionUID = -3606519379878097441L;
-
     private final List<NodeInfo> nodes = new LinkedList<>();
 
     public NetworkMap(NodeInfo myNode) {
@@ -19,9 +17,10 @@ public class NetworkMap implements Serializable {
     }
 
     public void add(NodeInfo nodeInfo) {
-        // prefer updated info
-        nodes.remove(nodeInfo);
-        nodes.add(nodeInfo);
+        // note, we don't prefer updated info to existed
+        if (!nodes.contains(nodeInfo)) {
+            nodes.add(nodeInfo);
+        }
     }
 
     public NodeInfo getNextFrom(NodeInfo myNode) {
