@@ -79,6 +79,10 @@ public class TokenHolderState extends NodeState {
     // --- passing token ---
 
     private void passToken() {
+        logger.trace("-- Current netmap --");
+        ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(Colorer.format("%6`##%`") + " Current map node: " + nodeInfo));
+        logger.trace("-- map end --");
+
         assert ctx.netmap.size() != 0;
         if (ctx.netmap.size() == 1) {
             logger.info("No more nodes are known to give token");

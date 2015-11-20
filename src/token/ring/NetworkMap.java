@@ -3,12 +3,15 @@ package token.ring;
 import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.stream.Stream;
 
 /**
  * Precautions:
  *
  */
 public class NetworkMap implements Serializable {
+    private static final long serialVersionUID = -3606519379878097441L;
+
     private final List<NodeInfo> nodes = new LinkedList<>();
 
     public NetworkMap(NodeInfo myNode) {
@@ -45,6 +48,10 @@ public class NetworkMap implements Serializable {
 
     public void remove(NodeInfo nodeInfo) {
         nodes.remove(nodeInfo);
+    }
+
+    public Stream<NodeInfo> nodeInfos() {
+        return nodes.stream();
     }
 
 }
