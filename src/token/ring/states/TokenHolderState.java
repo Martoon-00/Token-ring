@@ -45,7 +45,7 @@ public class TokenHolderState extends NodeState {
         sender.remind(idlingTimeoutExpirationRF.newReminder(), ctx.getTimeout("holder.idle"));
         ctx.executor.submit(() -> {
             ctx.piComputator.next();
-            logger.info("Pi computation finished, current progress is " + ctx.piComputator.getCurrentPrecision());
+            logger.info(Colorer.format("Pi computation finished, current progress is %6`%d%`", ctx.piComputator.getCurrentPrecision()));
             markStageCompleted();
         });
 
@@ -79,9 +79,9 @@ public class TokenHolderState extends NodeState {
     // --- passing token ---
 
     private void passToken() {
-        logger.trace("-- Current netmap --");
-        ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(Colorer.format("%6`##%`") + " Current map node: " + nodeInfo));
-        logger.trace("-- map end --");
+        logger.trace(Colorer.format("%6`--%` Current netmap %6`--%`"));
+        ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(Colorer.format("   %6`##%` %s", nodeInfo)));
+        logger.trace(Colorer.format("%6`--%` netmap end     %6`--%`"));
 
         assert ctx.netmap.size() != 0;
         if (ctx.netmap.size() == 1) {

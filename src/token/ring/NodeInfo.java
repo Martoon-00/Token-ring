@@ -13,10 +13,6 @@ public class NodeInfo implements Serializable {
         this.unique = unique;
     }
 
-//    public InetSocketAddress getTcpListenerAddress() {
-//        return new InetSocketAddress(address, tcpPort);
-//    }
-
     @Override
     public String toString() {
         return String.format("NodeInfo %s {%s}", unique, address);

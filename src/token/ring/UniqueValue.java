@@ -59,7 +59,7 @@ public class UniqueValue implements Comparable<UniqueValue>, Serializable {
         for (int i = 0; i < mac.length; i++) {
             macReadable.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));
         }
-        return String.format("[%s %10s]", macReadable.toString(), name);
+        return String.format("[%s, %s]", macReadable.toString(), name);
     }
 
     @Override

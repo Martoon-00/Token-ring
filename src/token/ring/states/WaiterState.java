@@ -1,6 +1,7 @@
 package token.ring.states;
 
 
+import misc.Colorer;
 import org.apache.log4j.Logger;
 import sender.listeners.ReplyProtocol;
 import sender.message.ReminderFactory;
@@ -76,7 +77,7 @@ public class WaiterState extends NodeState {
             ctx.piComputator = acceptToken.computation;
         }
 
-        logger.info(String.format("Got pi number. Current progress: %d, last %d digits: %s",
+        logger.info(Colorer.format("Got pi number. Current progress: %5`%d%`, last %d digits: %s",
                 ctx.piComputator.getCurrentPrecision(), ctx.PI_PRECISION_STEP, ctx.piComputator.getLastDigits()));
 
         ctx.netmap = acceptToken.netmap;
