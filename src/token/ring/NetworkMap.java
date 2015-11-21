@@ -17,9 +17,13 @@ public class NetworkMap implements Serializable {
     }
 
     public void add(NodeInfo nodeInfo) {
-        // note, we don't prefer updated info to existed
-        if (!nodes.contains(nodeInfo)) {
+        int index = nodes.indexOf(nodeInfo);
+        if (index == -1) {
             nodes.add(nodeInfo);
+        } else {
+            // prefer updated node info
+            nodes.remove(index);
+            nodes.add(index, nodeInfo);
         }
     }
 

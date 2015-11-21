@@ -1,5 +1,6 @@
 package token.ring.states;
 
+import misc.Colorer;
 import org.apache.log4j.Logger;
 import sender.listeners.ReplyProtocol;
 import token.ring.NodeContext;
@@ -43,13 +44,13 @@ public class CandidateState extends NodeState {
         Priority ourPriority = ctx.getCurrentPriority();
         int isHisGreater = otherCandidateClaim.priority.compareTo(ourPriority);
         if (isHisGreater > 0) {
-            logger.info(String.format("Detected Candidate with higher priority %s (our priority is %s)", otherCandidateClaim.priority, ourPriority));
+            logger.info(Colorer.format("Detected Candidate with %1`higher%` priority %s (our priority is %s)", otherCandidateClaim.priority, ourPriority));
             ctx.switchToState(new WaiterState(ctx));
             return null;
         } else if (isHisGreater == 0) {
             logger.error("WTF? Heard the same priority from another candidate!");
         } else {
-            logger.info(String.format("Detected Candidate with lower priority %s (our priority is %s)", otherCandidateClaim.priority, ourPriority));
+            logger.info(Colorer.format("Detected Candidate with %6`lower%` priority %s (our priority is %s)", otherCandidateClaim.priority, ourPriority));
         }
 
         // tell him that he is not a nice guy

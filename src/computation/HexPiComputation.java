@@ -7,11 +7,11 @@ import java.math.BigDecimal;
 import java.util.Iterator;
 
 public class HexPiComputation implements Iterator<BigFraction>, Serializable {
-    private int iteration = 0;
+    private volatile int iteration = 0;
 
-    private BigFraction currentValue = new BigFraction(0);
+    private volatile BigFraction currentValue = new BigFraction(0);
     private final int precisionStep;
-    private BigFraction powerOf16 = new BigFraction(16);
+    private volatile BigFraction powerOf16 = new BigFraction(16);
 
     public HexPiComputation(int precisionStep) {
         this.precisionStep = precisionStep;
