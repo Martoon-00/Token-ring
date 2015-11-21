@@ -4,18 +4,13 @@ import java.io.Serializable;
 import java.net.InetAddress;
 
 public class NodeInfo implements Serializable {
+    private final UniqueValue unique;
     public final InetAddress address;
 
-    private final UniqueValue unique;
-
-    public NodeInfo(InetAddress address, UniqueValue unique) {
+    public NodeInfo(UniqueValue unique, InetAddress address) {
         this.address = address;
         this.unique = unique;
     }
-
-//    public InetSocketAddress getTcpListenerAddress() {
-//        return new InetSocketAddress(address, tcpPort);
-//    }
 
     @Override
     public String toString() {

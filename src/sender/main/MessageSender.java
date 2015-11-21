@@ -401,7 +401,7 @@ public class MessageSender implements Closeable {
     }
 
     public NodeInfo getNodeInfo() {
-        return new NodeInfo(listeningAddress, unique);
+        return new NodeInfo(unique, listeningAddress);
     }
 
     @Override
