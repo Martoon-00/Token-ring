@@ -36,9 +36,10 @@ public class UdpDispatcher extends NetDispatcher {
                 .map(InetSocketAddress::getAddress)
                 .orElse(broadcastAddress);
 
-        DatagramSocket socket = new DatagramSocket();
-        DatagramPacket packet = new DatagramPacket(sendInfo.data, sendInfo.data.length, address, port);
-        socket.send(packet);
+        try (DatagramSocket socket = new DatagramSocket()) {
+            DatagramPacket packet = new DatagramPacket(sendInfo.data, sendInfo.data.length, address, port);
+            socket.send(packet);
+        }
     }
 
     public void changePort(int newPort) {

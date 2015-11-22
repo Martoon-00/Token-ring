@@ -3,6 +3,7 @@ package token.ring;
 import org.apache.log4j.Logger;
 import sender.listeners.ReplyProtocol;
 import sender.main.RequestMessage;
+import sender.main.ResponseHandler;
 import token.ring.message.AcceptToken;
 import token.ring.message.HaveTokenMsg;
 import token.ring.message.PassTokenHandshakeMsg;
@@ -28,14 +29,14 @@ public class ScaredOfTokenMsgs {
                 RequestForNodeInfo.class,
                 PassTokenHandshakeMsg.class,
                 AcceptToken.class
-        ).map(requestType -> ReplyProtocol.dumbOn(requestType, this::reactOnRequestFromToken));
+        ).map(requestType -> ReplyProtocol.dumbReact(requestType, this::reactOnRequestFromToken));
     }
 
-    private void reactOnRequestFromToken(RequestMessage requestFromToken) {
+    private void reactOnRequestFromToken(ResponseHandler handler) {
         logger.info("Received message from token, delegating it to waiter");
 
         ctx.switchToState(new WaiterState(ctx));
-        ctx.sender.rereceive(requestFromToken);
+        handler.repeateReceiving();
     }
 
 }

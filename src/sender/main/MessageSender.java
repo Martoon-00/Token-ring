@@ -6,7 +6,6 @@ import sender.connection.*;
 import sender.listeners.Cancellation;
 import sender.listeners.ReceiveListener;
 import sender.listeners.ReplyProtocol;
-import sender.listeners.TimeoutListener;
 import sender.message.MessageIdentifier;
 import sender.message.ReminderMessage;
 import sender.util.Serializer;
@@ -37,7 +36,7 @@ public class MessageSender implements Closeable {
 
     private ExecutorService executor = Executors.newCachedThreadPool();
 
-    private final BlockingQueue<Message> received = new LinkedBlockingQueue<>();
+    private final BlockingQueue<MessageContainer> received = new LinkedBlockingQueue<>();
 
     private final TcpListener tcpListener;
     private final UdpListener udpListener;
@@ -54,7 +53,7 @@ public class MessageSender implements Closeable {
     private final Scheduler scheduler = new Scheduler();
 
     private final Collection<ReplyProtocol> replyProtocols = new ConcurrentLinkedQueue<>();
-    private final Map<MessageIdentifier, Consumer<ResponseMessage>> responseWaiters = new ConcurrentHashMap<>();
+    private final Map<MessageIdentifier, Consumer<MessageContainer>> responseWaiters = new ConcurrentHashMap<>();
     private BlockingQueue<Runnable> toProcess = new LinkedBlockingQueue<>();
 
 
@@ -111,10 +110,11 @@ public class MessageSender implements Closeable {
      */
     public <ReplyType extends ResponseMessage> Optional<ReplyType> sendAndWait(InetSocketAddress address, RequestMessage<ReplyType> message, DispatchType type, int timeout) {
         try {
-            ReplyType response = submit(address, message, type, timeout)
+            MessageContainer<ReplyType> response = submit(address, message, type, timeout, () -> {})
                     .poll(timeout, TimeUnit.MILLISECONDS);
+            // TODO: make smarter last parameter into submit
 
-            return Optional.ofNullable(response);
+            return Optional.ofNullable(response).map(messageContainer -> (messageContainer.message));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return Optional.empty();
@@ -145,7 +145,7 @@ public class MessageSender implements Closeable {
             DispatchType type,
             int timeout,
             ReceiveListener<ReplyType> receiveListener,
-            TimeoutListener onFail
+            Runnable onFail
     ) {
         // 0 for idling, -1 for fail, 1 for received
         AtomicInteger ok = new AtomicInteger();
@@ -154,13 +154,13 @@ public class MessageSender implements Closeable {
 
         submit(address, message, type, timeout, response -> {
             if (ok.compareAndSet(0, 1)) {
-                processingQueue.offer(() -> receiveListener.onReceive(address, response));
+                processingQueue.offer(() -> receiveListener.onReceive(new ResponseHandler<>(this, response)));
             }
-        });
+        }, onFail);
 
         scheduler.schedule(timeout, () -> {
             if (ok.compareAndSet(0, -1)) {
-                processingQueue.offer(onFail::onTimeout);
+                processingQueue.offer(onFail::run);
             }
         });
     }
@@ -184,8 +184,10 @@ public class MessageSender implements Closeable {
      * @return stream of replies
      */
     public <ReplyType extends ResponseMessage> Stream<ReplyType> broadcastAndWait(RequestMessage<ReplyType> message, int timeout) {
-        BlockingQueue<ReplyType> responseContainer = submit(null, message, DispatchType.UDP, timeout);
-        return StreamUtil.fromBlockingQueue(responseContainer, timeout);
+        BlockingQueue<MessageContainer<ReplyType>> responseContainer = submit(null, message, DispatchType.UDP, timeout, () -> {});
+        // TODO: make smart last param in submit
+        return StreamUtil.fromBlockingQueue(responseContainer, timeout)
+                .map(messageContainer -> (messageContainer.message));
     }
 
     /**
@@ -205,19 +207,21 @@ public class MessageSender implements Closeable {
      *                        Note that this listener is invoked even if no message has been received
      * @param <ReplyType>     response type
      */
-    public <ReplyType extends ResponseMessage> void broadcast(RequestMessage<ReplyType> message, int timeout, ReceiveListener<ReplyType> receiveListener, TimeoutListener onTimeout) {
+    public <ReplyType extends ResponseMessage> void broadcast(RequestMessage<ReplyType> message, int timeout, ReceiveListener<ReplyType> receiveListener, Runnable onTimeout) {
         AtomicBoolean timeoutExpired = new AtomicBoolean();
         BlockingQueue<Runnable> processingQueue = this.toProcess;
 
+        Runnable onFinish = () -> {
+            timeoutExpired.set(true);
+            processingQueue.offer(onTimeout::run);
+        };
+
         submit(null, message, DispatchType.UDP, timeout, response -> {
             if (timeoutExpired.get()) return;
-            processingQueue.offer(() -> receiveListener.onReceive(response.getResponseListenerAddress(), response));
-        });
+            processingQueue.offer(() -> receiveListener.onReceive(new ResponseHandler<>(this, response)));
+        }, onFinish::run);
 
-        scheduler.schedule(timeout, () -> {
-            timeoutExpired.set(true);
-            processingQueue.offer(onTimeout::onTimeout);
-        });
+        scheduler.schedule(timeout, onFinish);
     }
 
     public <ReplyType extends ResponseMessage> void broadcast(RequestMessage<ReplyType> message, int timeout, ReceiveListener<ReplyType> receiveListener) {
@@ -226,7 +230,7 @@ public class MessageSender implements Closeable {
     }
 
     public <ReplyType extends ResponseMessage> void broadcast(RequestMessage<ReplyType> message) {
-        broadcast(message, 0, (source, response) -> {
+        broadcast(message, 0, (handler) -> {
         });
     }
 
@@ -241,21 +245,21 @@ public class MessageSender implements Closeable {
      * @param delay   when to send a mention
      */
     public void remind(ReminderMessage message, int delay) {
-        Runnable remindTask = () -> send(null, message, DispatchType.LOOPBACK, 10000, (addr, response) -> {
+        Runnable remindTask = () -> send(null, message, DispatchType.LOOPBACK, 10000, (handler) -> {
         });
         scheduler.schedule(delay, remindTask);
     }
 
-    public void rereceive(RequestMessage message) {
-        if (message.logOnReceive()) {
-            logger.info(ColoredArrows.RERECEIVE + String.format(" %s", message));
+    void rereceive(MessageContainer msgContainer) {
+        if (msgContainer.message.logOnReceive()) {
+            logger.info(ColoredArrows.RERECEIVE + String.format(" %s", msgContainer.message));
         }
-        received.offer(message);
+        received.offer(msgContainer);
     }
 
-    private <ReplyType extends ResponseMessage> BlockingQueue<ReplyType> submit(InetSocketAddress address, RequestMessage<ReplyType> message, DispatchType type, int timeout) {
-        LinkedBlockingQueue<ReplyType> container = new LinkedBlockingQueue<>();
-        submit(address, message, type, timeout, container::offer);
+    private <ReplyType extends ResponseMessage> BlockingQueue<MessageContainer<ReplyType>> submit(InetSocketAddress address, RequestMessage<ReplyType> message, DispatchType type, int timeout, Runnable onFail) {
+        LinkedBlockingQueue<MessageContainer<ReplyType>> container = new LinkedBlockingQueue<>();
+        submit(address, message, type, timeout, container::offer, onFail);
         return container;
     }
 
@@ -264,22 +268,21 @@ public class MessageSender implements Closeable {
      * puts message into output queue,
      * puts reply consumer to responseWaiters (and scheduling its removal)
      */
-    private <ReplyType extends ResponseMessage> void submit(InetSocketAddress address, RequestMessage<ReplyType> message, DispatchType type, int timeout, Consumer<ReplyType> consumer) {
+    private <ReplyType extends ResponseMessage> void submit(InetSocketAddress address, RequestMessage<ReplyType> message, DispatchType type, int timeout, Consumer<MessageContainer<ReplyType>> onReceive, Runnable onFail) {
         MessageIdentifier identifier = new MessageIdentifier(unique);
-        message.setIdentifier(identifier);
+        MessageContainer msgContainer = new MessageContainer<>(identifier, getUdpListenerAddress(), message);
         responseWaiters.put(identifier, responseMessage -> {
                     try {
                         //noinspection unchecked
-                        ReplyType casted = (ReplyType) responseMessage;
-                        consumer.accept(casted);
+                        onReceive.accept(responseMessage);
                     } catch (ClassCastException e) {
                         logger.warn("Accepted message of wrong type", e);
                     }
                 }
         );
 
-        forwardSingle(address, message, type);
-        scheduler.schedule(timeout, () -> responseWaiters.remove(message.getIdentifier()));
+        forwardToDispatcher(address, msgContainer, type, onFail);
+        scheduler.schedule(timeout, () -> responseWaiters.remove(identifier));
     }
 
     /**
@@ -295,46 +298,47 @@ public class MessageSender implements Closeable {
         return () -> replyProtocols.remove(protocol);
     }
 
-    private void forwardSingle(InetSocketAddress address, Message message, DispatchType dispatchType) {
-        boolean whetherLog = message.logOnSend();
+    private void forwardToDispatcher(InetSocketAddress address, MessageContainer msgContaner, DispatchType dispatchType, Runnable failListener) {
+        // TODO: wrap messages into container
+        boolean whetherLog = msgContaner.message.logOnSend();
 
         if (dispatchType == DispatchType.LOOPBACK) {
             if (whetherLog)
-                logger.info(ColoredArrows.LOOPBACK + String.format(" %s", message));
-            received.offer(message);
+                logger.info(ColoredArrows.LOOPBACK + String.format(" %s", msgContaner.message));
+            received.offer(msgContaner);
             return;
         }
 
-        message.setResponseListenerAddress(getUdpListenerAddress());
         if (dispatchType == DispatchType.UDP) {
             if (whetherLog) {
                 if (address == null) {
-                    logger.info(ColoredArrows.UDP_BROADCAST + String.format(" %s", message));
+                    logger.info(ColoredArrows.UDP_BROADCAST + String.format(" %s", msgContaner.message));
                 } else {
-                    logger.info(ColoredArrows.UDP + String.format(" %s: %s", address, message));
+                    logger.info(ColoredArrows.UDP + String.format(" %s: %s", address, msgContaner.message));
                 }
             }
-            udpDispatcher.send(makeSendInfo(address, message));
+            udpDispatcher.send(makeSendInfo(address, msgContaner, failListener));
         } else if (dispatchType == DispatchType.TCP) {
             if (whetherLog)
-                logger.info(ColoredArrows.TCP + String.format(" %s: %s", address, message));
-            tcpDispatcher.send(makeSendInfo(address, message));
+                logger.info(ColoredArrows.TCP + String.format(" %s: %s", address, msgContaner.message));
+            tcpDispatcher.send(makeSendInfo(address, msgContaner, failListener));
         } else {
             throw new IllegalArgumentException("Can't process dispatch type of " + dispatchType);
         }
     }
 
-    private SendInfo makeSendInfo(InetSocketAddress address, Message message) {
-        return new SendInfo(address, serializer.serialize(message));
+    private SendInfo makeSendInfo(InetSocketAddress address, MessageContainer msgContainer, Runnable failListener) {
+        return new SendInfo(address, serializer.serialize(msgContainer), failListener);
     }
 
     private void acceptMessage(byte[] bytes) {
         try {
-            Message message = (Message) serializer.deserialize(bytes);
-            if (message instanceof RequestMessage && ((RequestMessage) message).getIdentifier().unique.equals(unique))
+            MessageContainer msgContainer = (MessageContainer) serializer.deserialize(bytes);
+            Message message = msgContainer.message;
+            if (message instanceof RequestMessage && msgContainer.identifier.unique.equals(unique))
                 return;  // skip if sent by someone with same unique value; loopback messages are put to processing queue directly and hence not lost
 
-            received.offer(message);
+            received.offer(msgContainer);
         } catch (IOException | ClassCastException e) {
             logger.trace(Colorer.paint("??", Colorer.Format.RED) + " Got some trash", e);
         }
@@ -419,19 +423,19 @@ public class MessageSender implements Closeable {
             try {
                 while (!Thread.currentThread().isInterrupted()) {
                     // if in frozen state, wait for unfreezing
-                    Message message = received.take();
+                    MessageContainer msgContainer = received.take();
+                    Message message = msgContainer.message;
 
                     freezeControl.acquire();
                     try {
                         if (message instanceof RequestMessage) {
                             if (message.logOnReceive())
-                                logger.info(ColoredArrows.RECEIVED + String.format(" %s %s", ((RequestMessage) message).getIdentifier().unique, message));
-                            toProcess.offer(() -> process((RequestMessage) message));
-                        }
-                        else if (message instanceof ResponseMessage) {
+                                logger.info(ColoredArrows.RECEIVED + String.format(" %s %s", msgContainer.identifier.unique, message));
+                            toProcess.offer(() -> processRequestMsg(msgContainer));
+                        } else if (message instanceof ResponseMessage) {
                             if (message.logOnReceive())
                                 logger.info(ColoredArrows.RECEIVED + String.format(" %s", message));
-                            toProcess.offer(() -> process((ResponseMessage) message));
+                            toProcess.offer(() -> processResponseMsg(msgContainer));
                         } else
                             logger.warn("Got message of unknown type: " + message.getClass().getSimpleName());
                     } finally {
@@ -444,13 +448,16 @@ public class MessageSender implements Closeable {
 
         }
 
-        private void process(RequestMessage request) {
+        private <R extends RequestMessage> void processRequestMsg(MessageContainer<R> requestContainer) {
+            R request = requestContainer.message;
             for (ReplyProtocol replyProtocol : replyProtocols) {
                 if (request.getClass().isAssignableFrom(replyProtocol.requestType())) {
-                    ResponseMessage response = tryExecuteProtocol(replyProtocol, request);
+                    //noinspection unchecked
+                    ResponseMessage response = tryExecuteProtocol(replyProtocol, requestContainer);
                     if (response != null) {
-                        response.setIdentifier(request.getIdentifier());
-                        forwardSingle(request.getResponseListenerAddress(), response, DispatchType.UDP);
+                        MessageContainer responseContainer = new MessageContainer<>(requestContainer.identifier, getUdpListenerAddress(), response);
+                        forwardToDispatcher(requestContainer.responseListenerAddress, responseContainer, DispatchType.UDP, () -> {
+                        });
                     }
                     return;
                 }
@@ -458,14 +465,14 @@ public class MessageSender implements Closeable {
             logger.trace(Colorer.format("%1`(ignored)%` %s", request));
         }
 
-        private <Q extends RequestMessage<A>, A extends ResponseMessage> A tryExecuteProtocol(ReplyProtocol<Q, A> replyProtocol, Q message) {
-            return replyProtocol.makeResponse(message);
+        private <Q extends RequestMessage<A>, A extends ResponseMessage> A tryExecuteProtocol(ReplyProtocol<Q, A> replyProtocol, MessageContainer<Q> message) {
+            return replyProtocol.makeResponse(new ResponseHandler<>(MessageSender.this, message));
         }
 
-        private void process(ResponseMessage message) {
-            Consumer<ResponseMessage> responseWaiter = responseWaiters.get(message.getIdentifier());
+        private void processResponseMsg(MessageContainer msgContainer) {
+            Consumer<MessageContainer> responseWaiter = responseWaiters.get(msgContainer.identifier);
             if (responseWaiter != null) {
-                responseWaiter.accept(message);
+                responseWaiter.accept(msgContainer);
             }  // otherwise it has been removed due to timeout expiration
         }
     }

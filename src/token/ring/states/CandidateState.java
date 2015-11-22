@@ -29,8 +29,8 @@ public class CandidateState extends NodeState {
         ).forEach(sender::registerReplyProtocol);
 
         sender.broadcast(new AmCandidateMsg(ctx.getCurrentPriority()), ctx.getTimeout("candidate.main"),
-                (source, response) -> {
-                    response.logAboutThisMessage(logger);
+                (handler) -> {
+                    handler.getMessage().logAboutThisMessage(logger);
                     ctx.switchToState(new WaiterState(ctx));
                 },
                 () -> {

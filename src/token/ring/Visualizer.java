@@ -30,7 +30,7 @@ public class Visualizer {
 
     private void changeState(ChangedStateLogMsg message) {
         logger.info("!!!!");
-        UniqueValue key = message.getIdentifier().unique;
+        UniqueValue key = message.unique;
         NodeItem node = nodes.get(key);
         if (node == null)
             nodes.put(key, node = new NodeItem());

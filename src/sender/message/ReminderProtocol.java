@@ -2,7 +2,7 @@ package sender.message;
 
 import misc.Colorer;
 import org.apache.log4j.Logger;
-import sender.listeners.ReplyProtocol;
+import sender.listeners.PlainReplyProtocol;
 
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
@@ -13,8 +13,8 @@ import java.util.function.Function;
  * <p>
  * When several different reminders received, only the last sent one created with this factory will act.
  */
-public abstract class ReminderFactory<R extends ReminderMessage> implements ReplyProtocol<R, VoidMessage> {
-    private static final Logger logger = Logger.getLogger(ReminderFactory.class);
+public abstract class ReminderProtocol<R extends ReminderMessage> implements PlainReplyProtocol<R, VoidMessage> {
+    private static final Logger logger = Logger.getLogger(ReminderProtocol.class);
 
     private static final AtomicLong factoriesCreated = new AtomicLong();
 
@@ -25,7 +25,7 @@ public abstract class ReminderFactory<R extends ReminderMessage> implements Repl
 
     private final Class<R> reminderType;
 
-    public ReminderFactory(Function<ReminderIdentifier, R> reminderConstructor) {
+    public ReminderProtocol(Function<ReminderIdentifier, R> reminderConstructor) {
         this.reminderCtor = reminderConstructor;
 
         R apply = reminderConstructor.apply(new ReminderIdentifier(-1, -1));
@@ -54,8 +54,8 @@ public abstract class ReminderFactory<R extends ReminderMessage> implements Repl
         return reminderType;
     }
 
-    public static <R extends ReminderMessage> ReminderFactory of(Function<ReminderIdentifier, R> reminderConstructor, Consumer<R> onRemind) {
-        return new ReminderFactory<R>(reminderConstructor) {
+    public static <R extends ReminderMessage> ReminderProtocol of(Function<ReminderIdentifier, R> reminderConstructor, Consumer<R> onRemind) {
+        return new ReminderProtocol<R>(reminderConstructor) {
             @Override
             protected void onRemind(R reminder) {
                 onRemind.accept(reminder);

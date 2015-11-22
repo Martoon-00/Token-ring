@@ -5,7 +5,7 @@ public class ReminderIdentifier {
     final long reminderId;
 
     /**
-     * Can be instantiated only by ReminderFactory
+     * Can be instantiated only by ReminderProtocol
      */
     ReminderIdentifier(long factoryId, long reminderId) {
         this.factoryId = factoryId;

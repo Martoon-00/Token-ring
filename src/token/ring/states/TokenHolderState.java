@@ -4,7 +4,7 @@ import misc.Colorer;
 import org.apache.log4j.Logger;
 import sender.listeners.ReplyProtocol;
 import sender.main.DispatchType;
-import sender.message.ReminderFactory;
+import sender.message.ReminderProtocol;
 import token.ring.NodeContext;
 import token.ring.NodeInfo;
 import token.ring.NodeState;
@@ -25,8 +25,8 @@ public class TokenHolderState extends NodeState {
 
     private NodeInfo acceptingTokenNode;
 
-    private final ReminderFactory idlingTimeoutExpirationRF = ReminderFactory.of(IdlingTimeoutExpiredReminder::new, this::onIdleTimeoutExpiration);
-    private final ReminderFactory broadcastHaveTokenRF = ReminderFactory.of(TokenHolderTimeoutExpireReminder::new, this::onTokenHolderTimeoutExpiration);
+    private final ReminderProtocol idlingTimeoutExpirationRF = ReminderProtocol.of(IdlingTimeoutExpiredReminder::new, this::onIdleTimeoutExpiration);
+    private final ReminderProtocol broadcastHaveTokenRF = ReminderProtocol.of(TokenHolderTimeoutExpireReminder::new, this::onTokenHolderTimeoutExpiration);
     private ReplyProtocol[] replyProtocols = new ReplyProtocol[]{
             broadcastHaveTokenRF,
             ReplyProtocol.dumbOn(HaveTokenMsg.class, this::onHearFromOtherToken),
@@ -53,7 +53,7 @@ public class TokenHolderState extends NodeState {
             logger.info("Decided to gather node info");
             stagesRemained++;
             sender.broadcast(new RequestForNodeInfo(), ctx.getTimeout("holder.gather-info"),
-                    (source, response) -> ctx.netmap.add(response.nodeInfo),
+                    (handler) -> ctx.netmap.add(handler.getMessage().nodeInfo),
                     () -> {
                         logger.info("Finished gathering node info");
                         markStageCompleted();
@@ -90,7 +90,7 @@ public class TokenHolderState extends NodeState {
         } else {
             acceptingTokenNode = ctx.netmap.getNextFrom(sender.getNodeInfo());
             sender.send(new InetSocketAddress(acceptingTokenNode.address, 0), new PassTokenHandshakeMsg(), DispatchType.UDP, ctx.getTimeout("holder.handshake"),
-                    (source, response) -> passTokenStage2(response),
+                    handler -> passTokenStage2(handler.getMessage()),
                     this::passTokenFail
             );
         }
@@ -99,7 +99,7 @@ public class TokenHolderState extends NodeState {
     private void passTokenStage2(PassTokenHandshakeResponseMsg handshakeResponse) {
         logger.info("Handshake success, passing token");
         sender.send(handshakeResponse.tcpAddress, new AcceptToken(ctx.piComputator, ctx.netmap), DispatchType.TCP, ctx.getTimeout("holder.give-token"),
-                (source, response) -> {
+                handler -> {
                     logger.info("Token successfully passed");
                     ctx.switchToState(new WaiterState(ctx));
                 },

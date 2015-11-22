@@ -37,7 +37,7 @@ public class LostTokenState extends NodeState {
 
     private void broadcastLostToken() {
         sender.broadcast(new LostTokenMsg(), ctx.getTimeout("lost.main"),
-                (address, recentlyHeardTokenMsg) -> {
+                (handler) -> {
                     // set goingToStayAsIs to true and notify if it is a first such message
                     if (goToStayAsIs()) {
                         logger.info("Received RecentlyHeardTokenMsg, going to repeat lifecycle");

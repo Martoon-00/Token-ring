@@ -4,7 +4,7 @@ package token.ring.states;
 import misc.Colorer;
 import org.apache.log4j.Logger;
 import sender.listeners.ReplyProtocol;
-import sender.message.ReminderFactory;
+import sender.message.ReminderProtocol;
 import token.ring.NodeContext;
 import token.ring.NodeState;
 import token.ring.message.*;
@@ -14,7 +14,7 @@ import java.util.Arrays;
 public class WaiterState extends NodeState {
     private static final Logger logger = Logger.getLogger(WaiterState.class);
 
-    private final ReminderFactory waiterTimeoutRF = ReminderFactory.of(WaiterTimeoutExpireReminder::new, this::onTimeoutExpiration);
+    private final ReminderProtocol waiterTimeoutRF = ReminderProtocol.of(WaiterTimeoutExpireReminder::new, this::onTimeoutExpiration);
 
     private ReplyProtocol[] replyProtocols = new ReplyProtocol[]{
             ReplyProtocol.dumbOn(HaveTokenMsg.class, this::reactOnHaveTokenMsg),
