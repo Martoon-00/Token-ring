@@ -114,7 +114,7 @@ public class TokenHolderState extends NodeState {
     }
 
     private void printNodeInfo() {
-        Function<NodeInfo, String> bullet = nodeInfo -> sender.getNodeInfo().equals(nodeInfo) ? "%6`#%`%3`>%`" : "%6`##%`";
+        Function<NodeInfo, String> bullet = nodeInfo -> sender.getNodeInfo().equals(nodeInfo) ? "%6`-%`%6`>%`" : "%6`##%`";
         logger.trace(Colorer.format("%6`--%` Current netmap %6`--%`"));
         ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(String.format("   %s %s", bullet.andThen(Colorer::format).apply(nodeInfo), nodeInfo)));
         logger.trace(Colorer.format("%6`--%` netmap end     %6`--%`"));
