@@ -81,6 +81,7 @@ public class WaiterState extends NodeState {
                 ctx.piComputator.getCurrentPrecision(), ctx.PI_PRECISION_STEP, ctx.piComputator.getLastDigits()));
 
         ctx.netmap = acceptToken.netmap;
+        ctx.netmap.add(sender.getNodeInfo());
 
         ctx.switchToState(new TokenHolderState(ctx));
 

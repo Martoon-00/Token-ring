@@ -4,7 +4,7 @@ import computation.HexPiComputation;
 import misc.Colorer;
 import org.apache.log4j.Logger;
 import sender.main.MessageSender;
-import token.ring.states.WaiterState;
+import token.ring.states.LostTokenState;
 
 import java.io.Closeable;
 import java.io.FileInputStream;
@@ -39,7 +39,7 @@ public class NodeContext implements Closeable {
         }
         sender = new MessageSender(networkInterface, udpPort);
         netmap = new NetworkMap(sender.getNodeInfo());
-        currentState = new WaiterState(this);
+        currentState = new LostTokenState(this);
     }
 
     public void initiate() {
