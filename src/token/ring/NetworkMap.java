@@ -27,7 +27,7 @@ public class NetworkMap implements Serializable {
         }
     }
 
-    public NodeInfo getNextFrom(NodeInfo myNode) {
+    public NodeInfo getNextTo(NodeInfo myNode) {
         add(myNode);
 
         boolean returnHere = false;

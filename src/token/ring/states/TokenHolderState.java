@@ -14,6 +14,7 @@ import token.ring.message.*;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Random;
+import java.util.function.Function;
 
 public class TokenHolderState extends NodeState {
     private static final Logger logger = Logger.getLogger(TokenHolderState.class);
@@ -63,8 +64,8 @@ public class TokenHolderState extends NodeState {
     }
 
     private boolean decideWhetherToUpdateNetMap() {
-        // true with probability 1 / n, where n is network map size
-        return new Random().nextInt(ctx.netmap.size()) == 0;
+        int n = ctx.netmap.size();
+        return new Random().nextInt(n) == 0;
     }
 
     private void markStageCompleted() {
@@ -79,16 +80,14 @@ public class TokenHolderState extends NodeState {
     // --- passing token ---
 
     private void passToken() {
-        logger.trace(Colorer.format("%6`--%` Current netmap %6`--%`"));
-        ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(Colorer.format("   %6`##%` %s", nodeInfo)));
-        logger.trace(Colorer.format("%6`--%` netmap end     %6`--%`"));
+        printNodeInfo();
 
         assert ctx.netmap.size() != 0;
         if (ctx.netmap.size() == 1) {
             logger.info("No more nodes are known to give token");
             ctx.switchToState(new TokenHolderState(ctx));
         } else {
-            acceptingTokenNode = ctx.netmap.getNextFrom(sender.getNodeInfo());
+            acceptingTokenNode = ctx.netmap.getNextTo(sender.getNodeInfo());
             sender.send(new InetSocketAddress(acceptingTokenNode.address, 0), new PassTokenHandshakeMsg(), DispatchType.UDP, ctx.getTimeout("holder.handshake"),
                     handler -> passTokenStage2(handler.getMessage()),
                     this::passTokenFail
@@ -112,6 +111,13 @@ public class TokenHolderState extends NodeState {
         ctx.netmap.remove(acceptingTokenNode);
         acceptingTokenNode = null;
         passToken();
+    }
+
+    private void printNodeInfo() {
+        Function<NodeInfo, String> bullet = nodeInfo -> sender.getNodeInfo().equals(nodeInfo) ? "%2`%%%%%`" : "%6`##%`";
+        logger.trace(Colorer.format("%6`--%` Current netmap %6`--%`"));
+        ctx.netmap.nodeInfos().forEach(nodeInfo -> logger.trace(Colorer.format("   %s %s", bullet.apply(nodeInfo), nodeInfo)));
+        logger.trace(Colorer.format("%6`--%` netmap end     %6`--%`"));
     }
 
 

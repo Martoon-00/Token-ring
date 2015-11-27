@@ -2,7 +2,6 @@ package sender.listeners;
 
 import com.sun.istack.internal.NotNull;
 import com.sun.istack.internal.Nullable;
-import sender.main.MessageHandler;
 import sender.main.RequestHandler;
 import sender.main.RequestMessage;
 import sender.main.ResponseMessage;
@@ -55,7 +54,7 @@ public interface ReplyProtocol<RequestType extends RequestMessage<ReplyType>, Re
 
     static <Q extends RequestMessage<A>, A extends ResponseMessage> ReplyProtocol<Q, A> react(
             Class<? extends Q> requestType,
-            Consumer<MessageHandler<? super Q>> responseConstructor
+            Consumer<RequestHandler<Q, A>> responseConstructor
     ) {
         return new ReplyProtocol<Q, A>() {
             @Override
