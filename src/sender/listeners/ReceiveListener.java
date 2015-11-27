@@ -1,16 +1,12 @@
 package sender.listeners;
 
 import sender.main.Message;
-import sender.main.ResponseHandler;
-
-import java.net.InetSocketAddress;
+import sender.main.MessageHandler;
 
 @FunctionalInterface
-public interface ReceiveListener<ReplyType extends Message> {
+public interface ReceiveListener<ReplyType extends Message, Handler extends MessageHandler<ReplyType>> {
     /**
      * Action performed when got an answer
-     * @param source address to answer response with UDP (note: always UDP)
-     * @param response answer itself
      */
-    void onReceive(ResponseHandler<ReplyType> handler);
+    void onReceive(Handler handler);
 }

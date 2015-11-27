@@ -26,6 +26,9 @@ public class UdpDispatcher extends NetDispatcher {
 
     }
 
+    /**
+     * Set sendInfo.address as <tt>null</tt> to broadcast
+     */
     @Override
     protected void submit(SendInfo sendInfo) throws IOException {
         if (sendInfo.data.length > MAX_PACKET_SIZE) {

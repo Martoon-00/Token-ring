@@ -1,26 +1,25 @@
 package sender.main;
 
-import java.net.InetSocketAddress;
+import sender.listeners.ReceiveListener;
 
-public class ResponseHandler<M extends Message> {
-    private final MessageSender sender;
-    private final MessageContainer<M> container;
+public class ResponseHandler<R extends ResponseMessage> extends MessageHandler<R> {
 
-    public ResponseHandler(MessageSender sender, MessageContainer<M> container) {
-        this.sender = sender;
-        this.container = container;
+    public ResponseHandler(MessageSender sender, MessageContainer<R> container) {
+        super(sender, container);
     }
 
-    public M getMessage() {
-        return container.message;
+    public <ReplyType extends ResponseMessage> void answer(
+            RequestMessage<ReplyType> message, DispatchType type, int timeout,
+            ReceiveListener<ReplyType, ResponseHandler<ReplyType>> receiveListener, Runnable onFail
+    ) {
+        sender.send(container.responseListenerAddress, message, type, timeout, receiveListener, onFail);
     }
 
-    public InetSocketAddress getSourceAddress() {
-        return container.responseListenerAddress;
-    }
-
-    public void repeateReceiving() {
-        sender.rereceive(container);
+    public <ReplyType extends ResponseMessage> void answer(
+            RequestMessage<ReplyType> message, DispatchType type, int timeout,
+            ReceiveListener<ReplyType, ResponseHandler<ReplyType>> receiveListener
+    ) {
+        sender.send(container.responseListenerAddress, message, type, timeout, receiveListener);
     }
 
 }
